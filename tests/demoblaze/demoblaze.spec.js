@@ -14,10 +14,13 @@ test.describe('Demoblaze Test Suite', () => {
 
     username = `user_${Date.now()}`;
 
-    // ---- SIGN UP ----
+    // =========================
+    // SIGN UP
+    // =========================
+
     await page.getByRole('link', { name: 'Sign up' }).click();
 
-    // Assertion modal SIGN UP visible
+    // Assertion Sign Up modal visible
     await expect(
       page.getByRole('heading', { name: 'Sign up' })
     ).toBeVisible();
@@ -25,21 +28,30 @@ test.describe('Demoblaze Test Suite', () => {
     await page.locator('#sign-username').fill(username);
     await page.locator('#sign-password').fill(password);
 
-    // Assertion popup signup success
-    page.once('dialog', async dialog => {
-      expect(dialog.message()).toBe('Sign up successful.');
-      await dialog.accept();
-    });
+    // Wait popup dialog
+    const signupDialogPromise = page.waitForEvent('dialog');
 
+    // Click Sign up
     await page.getByRole('button', { name: 'Sign up' }).click();
+
+    // Assertion popup signup success
+    const signupDialog = await signupDialogPromise;
+
+    expect(signupDialog.message()).toContain('Sign up successful');
+
+    // Click OK popup
+    await signupDialog.accept();
 
     // Wait modal closed
     await page.waitForSelector('.modal', { state: 'hidden' });
 
-    // ---- LOGIN ----
+    // =========================
+    // LOGIN
+    // =========================
+
     await page.getByRole('link', { name: 'Log in' }).click();
 
-    // Assertion modal LOGIN visible
+    // Assertion Login modal visible
     await expect(
       page.getByRole('heading', { name: 'Log in' })
     ).toBeVisible();
@@ -57,7 +69,7 @@ test.describe('Demoblaze Test Suite', () => {
   });
 
   // =========================
-  // TEST CASE BARU
+  // ADD TO CART
   // =========================
 
   test('User able to click product and add to cart', async ({ page }) => {
@@ -78,19 +90,19 @@ test.describe('Demoblaze Test Suite', () => {
       page.getByRole('link', { name: 'Add to cart' })
     ).toBeVisible();
 
-    // Wait popup alert
-    const dialogPromise = page.waitForEvent('dialog');
+    // Wait popup dialog
+    const cartDialogPromise = page.waitForEvent('dialog');
 
     // Click Add to cart
     await page.getByRole('link', { name: 'Add to cart' }).click();
 
     // Assertion popup message
-    const dialog = await dialogPromise;
+    const cartDialog = await cartDialogPromise;
 
-    expect(dialog.message()).toBe('Product added.');
+    expect(cartDialog.message()).toContain('Product added');
 
     // Click OK popup
-    await dialog.accept();
+    await cartDialog.accept();
 
   });
 
