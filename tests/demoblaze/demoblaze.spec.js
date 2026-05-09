@@ -48,6 +48,43 @@ test.describe('Demoblaze Test Suite', () => {
 
     // validasi login sukses (muncul Welcome <username>)
     await expect(page.locator('#nameofuser')).toHaveText(`Welcome ${username}`);
-  });
+
+  //Flow Add Cart
+
+test('User able to click product and add to cart', async ({ page }) => {
+
+  // Open website
+  await page.goto('https://www.demoblaze.com/');
+
+  // Assertion homepage loaded
+  await expect(page).toHaveURL('https://www.demoblaze.com/');
+
+  // Click product
+  await page.getByRole('link', { name: 'Samsung galaxy s6' }).click();
+
+  // Assertion product detail page displayed
+  await expect(
+    page.getByRole('heading', { name: 'Samsung galaxy s6' })
+  ).toBeVisible();
+
+  // Assertion Add to cart button visible
+  await expect(
+    page.getByRole('link', { name: 'Add to cart' })
+  ).toBeVisible();
+
+  // Click Add to cart + wait popup alert
+  const dialogPromise = page.waitForEvent('dialog');
+
+  await page.getByRole('link', { name: 'Add to cart' }).click();
+
+  // Assertion popup message
+  const dialog = await dialogPromise;
+
+  expect(dialog.message()).toBe('Product added.');
+
+  // Click OK on popup
+  await dialog.accept();
 
 });
+});
+  });
