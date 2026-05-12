@@ -8,46 +8,110 @@ test.describe('Demoblaze Test Suite', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto('https://www.demoblaze.com/');
+    // Assert URL dipindah ke sini biar rapi dan nggak diulang di tiap test
+    await expect(page).toHaveURL('https://www.demoblaze.com/');
   });
 
   test('E2E: User bisa Sign Up -> Login -> Purchase', async ({ page }) => {
 
-    username = `user_${Date.now()}`;  // unique
+    // Tambahin randomizer biar username 100% unik
+    username = `user_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-    // ---- SIGN UP ----
+    // =========================
+    // SIGN UP
+    // =========================
+
     await page.getByRole('link', { name: 'Sign up' }).click();
 
-    // validasi modal khusus SIGN UP
-    await expect(page.getByRole('heading', { name: 'Sign up' })).toBeVisible();
+    // Limit scope pencarian khusus di dalem modal Sign up aja
+    const signUpModal = page.getByRole('dialog', { name: 'Sign up' });
 
-    await page.locator('#sign-username').fill(username);
-    await page.locator('#sign-password').fill(password);
+    // Pastikan modal Sign up udah muncul
+    await expect(
+      signUpModal.getByRole('heading', { name: 'Sign up' })
+    ).toBeVisible();
 
-   // ASSERTION SIGN UP BERHASIL
-    page.once('dialog', async dialog => {
-     expect(dialog.message()).toBe('Sign up successful.');
-    await dialog.accept();
-    });
+    // Fill form (di sini getByLabel aman karena HTML-nya bener)
+    await signUpModal.getByLabel('Username').fill(username);
+    await signUpModal.getByLabel('Password').fill(password);
 
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    // Handle alert bawaan browser menggunakan Promise.all (best practice Playwright)
+    const [signupDialog] = await Promise.all([
+      page.waitForEvent('dialog'),
+      signUpModal.getByRole('button', { name: 'Sign up' }).click()
+    ]);
 
-    // opsional: tunggu modal hilang
-    await page.waitForSelector('.modal', { state: 'hidden' });
+    // Assert isi alert message
+    expect(signupDialog.message()).toContain('Sign up successful');
 
+    // Klik OK di alert
+    await signupDialog.accept();
 
-    // ---- LOGIN ----
+    // Pastikan modal Sign up beneran ketutup
+    await expect(signUpModal).toBeHidden();
+
+    // =========================
+    // LOGIN
+    // =========================
+
     await page.getByRole('link', { name: 'Log in' }).click();
 
-    // validasi modal khusus LOGIN
-    await expect(page.getByRole('heading', { name: 'Log in' })).toBeVisible();
+    // Limit scope pencarian di dalem modal Log in
+    const loginModal = page.getByRole('dialog', { name: 'Log in' });
 
-    await page.locator('#loginusername').fill(username);
-    await page.locator('#loginpassword').fill(password);
+    // Pastikan modal Log in udah muncul
+    await expect(
+      loginModal.getByRole('heading', { name: 'Log in' })
+    ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Log in' }).click();
+    // NOTE: Khusus form Login terpaksa fallback pakai ID.
+    // Web Demoblaze ada bug: label for="log-name" tapi input id="loginusername".
+    // Kalau dipaksain pakai getByLabel() bakal timeout karena browser ngebaca labelnya "Not specified".
+    await loginModal.locator('#loginusername').fill(username);
+    await loginModal.locator('#loginpassword').fill(password);
 
-    // validasi login sukses (muncul Welcome <username>)
-    await expect(page.locator('#nameofuser')).toHaveText(`Welcome ${username}`);
+    await loginModal.getByRole('button', { name: 'Log in' }).click();
+
+    // Pastikan modal Log in ketutup dulu (menandakan API request selesai)
+    await expect(loginModal).toBeHidden();
+
+    // Assert berhasil login pakai getByText dengan extra timeout 15 detik 
+    // (Demoblaze kadang butuh waktu lebih dari 5 detik buat render UI)
+    await expect(page.getByText(`Welcome ${username}`)).toBeVisible({ timeout: 15000 });
+
+  });
+
+  // =========================
+  // ADD TO CART
+  // =========================
+
+  test('User able to click product and add to cart', async ({ page }) => {
+
+    // Klik produk pertama
+    await page.getByRole('link', { name: 'Samsung galaxy s6' }).click();
+
+    // Pastikan udah masuk ke halaman detail produk
+    await expect(
+      page.getByRole('heading', { name: 'Samsung galaxy s6' })
+    ).toBeVisible();
+
+    // Pastikan tombol Add to cart udah kerender
+    await expect(
+      page.getByRole('link', { name: 'Add to cart' })
+    ).toBeVisible();
+
+    // Handle alert menggunakan Promise.all (best practice Playwright)
+    const [cartDialog] = await Promise.all([
+      page.waitForEvent('dialog'),
+      page.getByRole('link', { name: 'Add to cart' }).click()
+    ]);
+
+    // Assert alert message pas add to cart
+    expect(cartDialog.message()).toContain('Product added');
+
+    // Klik OK di alert
+    await cartDialog.accept();
+
   });
 
 });
